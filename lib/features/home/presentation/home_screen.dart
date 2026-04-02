@@ -122,13 +122,52 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (_isFetching) const LinearProgressIndicator(),
-            if (isInitialState) const Spacer(flex: 3),
+      body: isInitialState
+          ? Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  TextField(
+                    controller: _urlController,
+                    enabled: !_isFetching,
+                    decoration: const InputDecoration(
+                      labelText: 'Media URL',
+                      border: OutlineInputBorder(),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _isFetching ? null : _analyze,
+                    child: _isFetching
+                        ? Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Theme.of(context).colorScheme.onPrimary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              const Text('Loading…'),
+                            ],
+                          )
+                        : const Text('Fetch Qualities'),
+                  ),
+                ],
+              ),
+            )
+          : SingleChildScrollView(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (_isFetching) const LinearProgressIndicator(),
             TextField(
               controller: _urlController,
               enabled: !_isFetching,
@@ -201,24 +240,23 @@ class _HomeScreenState extends State<HomeScreen> {
             if (_formats.isNotEmpty) const Text('Choose quality', style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
             if (_formats.isNotEmpty)
-              Expanded(
-                child: ListView.builder(
-                  itemCount: _formats.length,
-                  itemBuilder: (context, index) {
-                    final format = _formats[index];
-                    return Card(
-                      child: ListTile(
-                        title: Text(format.label),
-                        trailing: FilledButton.tonal(
-                          onPressed: () => _startDownload(format),
-                          child: const Text('Download'),
-                        ),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _formats.length,
+                itemBuilder: (context, index) {
+                  final format = _formats[index];
+                  return Card(
+                    child: ListTile(
+                      title: Text(format.label),
+                      trailing: FilledButton.tonal(
+                        onPressed: () => _startDownload(format),
+                        child: const Text('Download'),
                       ),
-                    );
-                  },
-                ),
+                    ),
+                  );
+                },
               ),
-            if (isInitialState) const Spacer(flex: 5),
           ],
         ),
       ),

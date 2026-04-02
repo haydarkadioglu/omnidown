@@ -3,6 +3,7 @@ import 'package:vid_donw/domain/models/format_option.dart';
 import 'package:vid_donw/domain/models/media_source.dart';
 import 'package:vid_donw/features/extract/mappers/format_mapper.dart';
 import 'package:vid_donw/features/extract/services/link_parser_service.dart';
+import 'package:vid_donw/features/extract/services/cobalt_api_service.dart';
 import 'package:youtube_explode_dart/youtube_explode_dart.dart';
 
 class ExtractorResult {
@@ -19,17 +20,24 @@ class ExtractorService {
   })  : _parserService = parserService ?? LinkParserService(),
         _formatMapper = formatMapper ?? FormatMapper(),
         _dio = dio ?? Dio(),
-        _yt = YoutubeExplode();
+        _yt = YoutubeExplode(),
+        _cobaltApi = CobaltApiService();
 
   final LinkParserService _parserService;
   final FormatMapper _formatMapper;
   final Dio _dio;
   final YoutubeExplode _yt;
+  final CobaltApiService _cobaltApi;
 
   Future<ExtractorResult> extract(String url) async {
     final platform = _parserService.detectPlatform(url);
     if (platform == MediaPlatform.youtube) {
       return _extractYoutube(url, platform);
+    }
+    
+    if (platform == MediaPlatform.instagram || platform == MediaPlatform.twitter) {
+      final cobaltResult = await _cobaltApi.extract(url, platform);
+      return ExtractorResult(source: cobaltResult.$1, formats: cobaltResult.$2);
     }
 
     final metadata = await _fetchMetadata(url, platform);
