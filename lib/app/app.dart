@@ -24,7 +24,7 @@ class DownloaderApp extends StatelessWidget {
         builder: (context, themeProvider, child) {
           return MaterialApp(
             debugShowCheckedModeBanner: false,
-            title: 'VidDonw',
+            title: 'OmniDown',
             themeMode: themeProvider.themeMode,
             theme: ThemeData(
               colorSchemeSeed: Colors.blue, 
