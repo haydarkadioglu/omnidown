@@ -162,9 +162,34 @@ class ExtractorService {
         thumbnailUrl: video.thumbnails.highResUrl,
       );
 
+      // Validate formats to remove broken links (403 Forbidden / DioException)
+      final validFormats = <FormatOption>[];
+      final futures = formats.map((format) async {
+        try {
+          if (format.downloadUrl != null) {
+            final res = await _dio.get(
+              format.downloadUrl!,
+              options: Options(headers: {'Range': 'bytes=0-0'}, receiveTimeout: const Duration(seconds: 3)),
+            );
+            if (res.statusCode != null && res.statusCode! >= 400) return;
+          }
+          if (format.audioDownloadUrl != null) {
+            final res = await _dio.get(
+              format.audioDownloadUrl!,
+              options: Options(headers: {'Range': 'bytes=0-0'}, receiveTimeout: const Duration(seconds: 3)),
+            );
+            if (res.statusCode != null && res.statusCode! >= 400) return;
+          }
+          validFormats.add(format);
+        } catch (_) {
+          // Ignore failing formats
+        }
+      });
+      await Future.wait(futures);
+
       return ExtractorResult(
         source: source,
-        formats: formats.isEmpty ? _formatMapper.buildDefaultOptions() : formats,
+        formats: validFormats.isEmpty ? _formatMapper.buildDefaultOptions() : validFormats,
       );
     } catch (_) {
       final metadata = await _fetchMetadata(apiUrl, platform);
@@ -293,17 +318,19 @@ class ExtractorService {
   }
 
   Future<ExtractorResult> _extractInstagram(String url, MediaPlatform platform) async {
-    // We use saveig.app proxy. Highly reliable open REST endpoint.
+    // We try to use a new, highly reliable alternative API (igdownloader.net).
+    // We intentionally DO NOT wrap this in a silent try-catch because the user 
+    // wants to see the raw Exception / DioException if it fails.
+    
     final response = await _dio.post(
-      'https://saveig.app/api/ajaxSearch',
+      'https://v3.igdownloader.net/api/ajaxSearch',
       data: 'q=\${Uri.encodeComponent(url)}&t=media&lang=en',
       options: Options(
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
-          'Accept': '*/*',
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
-          'Origin': 'https://saveig.app',
-          'Referer': 'https://saveig.app/en'
+          'Origin': 'https://igdownloader.net',
+          'Referer': 'https://igdownloader.net/en'
         },
       ),
     );
@@ -311,33 +338,37 @@ class ExtractorService {
     final data = response.data;
     if (data is String) {
         final Map<String, dynamic> json = jsonDecode(data);
-        final html = json['data'] as String;
+        final html = json['data'] as String? ?? '';
         
+        // Extract the download link from the returned HTML
         final regex = RegExp(r'<a[^>]*href="([^"]+)"[^>]*>.*?Download.*?</a>', caseSensitive: false);
         final match = regex.firstMatch(html);
         if (match != null) {
             String downloadUrl = match.group(1)!;
             downloadUrl = downloadUrl.replaceAll('&amp;', '&');
-            
-            return ExtractorResult(
-                source: MediaSource(
-                    platform: platform,
-                    url: url,
-                    title: 'Instagram Video',
-                    thumbnailUrl: '', // SaveIG's response is pure HTML links, we don't scrape thumbnail to avoid parsing errors
-                ),
-                formats: [
-                    FormatOption(
-                        id: 'ig-proxy',
-                        label: 'Instagram Video (MP4)',
-                        isAudioOnly: false,
-                        downloadUrl: downloadUrl,
-                        outputExtension: 'mp4',
+            if (downloadUrl.startsWith('http')) {
+                return ExtractorResult(
+                    source: MediaSource(
+                        platform: platform,
+                        url: url,
+                        title: 'Instagram Video (IGDownloader)',
+                        thumbnailUrl: '',
                     ),
-                ]
-            );
+                    formats: [
+                        FormatOption(
+                            id: 'ig-alt',
+                            label: 'Instagram Video (Yüksek Kalite)',
+                            isAudioOnly: false,
+                            downloadUrl: downloadUrl,
+                            outputExtension: 'mp4',
+                        ),
+                    ]
+                );
+            }
         }
     }
-    throw Exception('Instagram videosu bulunamadı. Gizli profil olabilir veya API engeli mevcut.');
+
+    // If parsing fails but network call succeeds, we throw a clear error.
+    throw Exception('Alternatif servis (IGDownloader) yanıt verdi ancak içinden geçerli video adresi çıkarılamadı.');
   }
 }
