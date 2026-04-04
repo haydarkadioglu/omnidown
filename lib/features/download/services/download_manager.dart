@@ -103,15 +103,16 @@ class DownloadManager extends ChangeNotifier {
 
       if (format.isAudioOnly && format.downloadUrl == null) {
         throw UnsupportedError(
-          'This audio format is not available yet (needs stream URL or MP3 encoder).',
+          'This audio format is not available yet (needs stream URL).',
         );
       }
 
       final tempOutputVideo = '${task.outputPath}.temp.mp4';
-      final tempOutputAudio = '${task.outputPath}.temp.m4a';
+      final tempOutputAudio = '${task.outputPath}.temp.media';
       final finalOutput = task.outputPath;
 
-      final needsMerge = format.audioDownloadUrl != null;
+      final needsMerge = format.audioDownloadUrl != null && !format.isAudioOnly;
+      final needsMp3Conversion = format.outputExtension == 'mp3';
 
       if (needsMerge) {
         double videoProgress = 0;
@@ -160,6 +161,34 @@ class DownloadManager extends ChangeNotifier {
         if (!ReturnCode.isSuccess(returnCode)) {
            throw Exception('Arka planda birleştirme başarısız oldu (Hata Kodu: ${returnCode?.getValue()})');
         }
+      } else if (needsMp3Conversion) {
+        // Download to temp file first
+        await _dio.download(
+          downloadUrl,
+          tempOutputAudio,
+          cancelToken: token,
+          onReceiveProgress: (received, total) {
+            if (total > 0) {
+              task.progress = received / total;
+              notifyListeners();
+            }
+          },
+        );
+
+        task.status = DownloadStatus.merging;
+        task.progress = 1.0;
+        notifyListeners();
+
+        // Convert to MP3
+        final session = await FFmpegKit.execute('-i "$tempOutputAudio" -q:a 0 -map a "$finalOutput"');
+        final returnCode = await session.getReturnCode();
+
+        final aFile = File(tempOutputAudio);
+        if (await aFile.exists()) await aFile.delete();
+
+        if (!ReturnCode.isSuccess(returnCode)) {
+           throw Exception('MP3 dönüştürme başarısız oldu (Hata Kodu: \${returnCode?.getValue()})');
+        }
       } else {
         await _dio.download(
           downloadUrl,
@@ -187,10 +216,12 @@ class DownloadManager extends ChangeNotifier {
           'Downloaded content is a webpage, not a media file. Use a direct media URL.',
         );
       }
-      if (!_looksPlayableVideo(bytes)) {
+      
+      if (!needsMp3Conversion && !_looksPlayableVideo(bytes) && format.outputExtension != 'm4a') {
+        // MP3/M4A often don't have video headers, skip video check for them.
         await output.delete();
         throw const FormatException(
-          'Downloaded file is not a playable video stream.',
+          'Downloaded file is not a playable stream.',
         );
       }
 
@@ -202,7 +233,7 @@ class DownloadManager extends ChangeNotifier {
     } finally {
       try {
         final v = File('${task.outputPath}.temp.mp4');
-        final a = File('${task.outputPath}.temp.m4a');
+        final a = File('${task.outputPath}.temp.media');
         if (await v.exists()) await v.delete();
         if (await a.exists()) await a.delete();
       } catch (_) {}

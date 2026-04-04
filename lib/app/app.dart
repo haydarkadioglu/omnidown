@@ -58,7 +58,10 @@ class _RootScaffoldState extends State<_RootScaffold> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _screens[_index],
+      body: IndexedStack(
+        index: _index,
+        children: _screens,
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
         onDestinationSelected: (value) => setState(() => _index = value),
