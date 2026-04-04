@@ -268,9 +268,30 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 },
               ),
+
+            const SizedBox(height: 24),
+            const Divider(),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 16.0),
+              child: Column(
+                children: [
+                  Text(
+                    'Haydar Kadıoğlu tarafından geliştirildi.',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  Text('haydarkadioglu.com'),
+                  SizedBox(height: 4),
+                  Text(
+                    'Open Source ❤️',
+                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 }
+

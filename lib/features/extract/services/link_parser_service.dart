@@ -12,5 +12,8 @@ class LinkParserService {
     return MediaPlatform.unknown;
   }
 
-  bool isSupportedPublicUrl(String url) => detectPlatform(url) != MediaPlatform.unknown;
+  bool isSupportedPublicUrl(String url) {
+    final lower = url.trim().toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
 }

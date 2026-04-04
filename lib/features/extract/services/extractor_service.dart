@@ -27,33 +27,58 @@ class ExtractorService {
   final Dio _dio;
   final YoutubeExplode _yt;
 
+  // Sizin yeni nesil Python (yt-dlp) motorunuz!
+  static const String _backendUrl = 'https://omnidownapi.haydarkadioglu.com/api/extract';
+
   Future<ExtractorResult> extract(String url) async {
     final platform = _parserService.detectPlatform(url);
-    if (platform == MediaPlatform.youtube) {
-      return _extractYoutube(url, platform);
-    }
     
-    if (platform == MediaPlatform.twitter) {
-      return await _extractTwitter(url, platform);
+    // Artık hem YouTube hem de Sosyal Medya için direkt en sağlam yol olan 
+    // kendi Python sunucumuza gidiyoruz. Hata çıkarsa yerel çözücüye (varsa) düşer.
+    try {
+      return await _extractFromBackend(url, platform);
+    } catch (e) {
+      if (platform == MediaPlatform.youtube) {
+        // Backend'de bir sorun olursa (örn: 10sn sınırı), yerel YouTube motoruna dönelim.
+        return await _extractYoutube(url, platform);
+      }
+      rethrow;
+    }
+  }
+
+  Future<ExtractorResult> _extractFromBackend(String url, MediaPlatform platform) async {
+    final response = await _dio.get(
+      _backendUrl,
+      queryParameters: {'url': url},
+      options: Options(
+        receiveTimeout: const Duration(seconds: 20), // yt-dlp bazen analiz için süre ister
+      ),
+    );
+
+    final data = response.data;
+    if (data == null || data['formats'] == null) {
+      throw Exception('Sunucu yanıt verdi ama video formatları bulunamadı.');
     }
 
-    if (platform == MediaPlatform.tiktok) {
-      return await _extractTikTok(url, platform);
-    }
+    final formats = (data['formats'] as List).map((f) {
+      return FormatOption(
+        id: f['id'] ?? 'remote',
+        label: f['label'] ?? 'Video',
+        isAudioOnly: f['isAudioOnly'] ?? false,
+        downloadUrl: f['downloadUrl'],
+        outputExtension: f['outputExtension'] ?? 'mp4',
+        estimatedSizeBytes: f['estimatedSizeBytes'] ?? 0,
+      );
+    }).toList();
 
-    if (platform == MediaPlatform.instagram) {
-      return await _extractInstagram(url, platform);
-    }
-
-    final metadata = await _fetchMetadata(url, platform);
     final source = MediaSource(
       platform: platform,
       url: url,
-      title: metadata.$1,
-      thumbnailUrl: metadata.$2,
+      title: data['title'] ?? 'Medya Dosyası',
+      thumbnailUrl: data['thumbnail'] ?? '',
     );
 
-    return ExtractorResult(source: source, formats: _formatMapper.buildDefaultOptions());
+    return ExtractorResult(source: source, formats: formats);
   }
 
   String _normalizeYoutubePageUrl(String url) {
@@ -173,13 +198,6 @@ class ExtractorService {
             );
             if (res.statusCode != null && res.statusCode! >= 400) return;
           }
-          if (format.audioDownloadUrl != null) {
-            final res = await _dio.get(
-              format.audioDownloadUrl!,
-              options: Options(headers: {'Range': 'bytes=0-0'}, receiveTimeout: const Duration(seconds: 3)),
-            );
-            if (res.statusCode != null && res.statusCode! >= 400) return;
-          }
           validFormats.add(format);
         } catch (_) {
           // Ignore failing formats
@@ -224,151 +242,5 @@ class ExtractorService {
     } catch (_) {
     }
     return (fallbackTitle, '');
-  }
-
-  Future<ExtractorResult> _extractTwitter(String url, MediaPlatform platform) async {
-    final regex = RegExp(r'status/(\d+)');
-    final match = regex.firstMatch(url);
-    if (match == null) throw FormatException('Geçerli bir Twitter URL\'si bulunamadı.');
-    
-    final tweetId = match.group(1)!;
-    final apiUrl = 'https://cdn.syndication.twimg.com/tweet-result?id=\$tweetId';
-    
-    final response = await _dio.get(apiUrl);
-    if (response.statusCode != 200) throw Exception('Twitter API hatası: \${response.statusCode}');
-    
-    final data = response.data;
-    if (data['video'] == null || data['video']['variants'] == null) {
-      throw Exception('Bu Tweet içinde video bulunamadı.');
-    }
-
-    final variants = data['video']['variants'] as List;
-    final formats = <FormatOption>[];
-    
-    for (var i = 0; i < variants.length; i++) {
-      final v = variants[i];
-      if (v['type'] == 'video/mp4') {
-        final bitrate = v['bitrate'] ?? 0;
-        formats.add(FormatOption(
-          id: 'tw-\$bitrate',
-          label: 'Twitter Video (\${bitrate ~/ 1000}kbps MP4)',
-          isAudioOnly: false,
-          downloadUrl: v['src'],
-          outputExtension: 'mp4',
-        ));
-      }
-    }
-    
-    if (formats.isEmpty) throw Exception('Desteklenen video formatı bulunamadı.');
-    
-    formats.sort((a, b) {
-      final aBit = int.tryParse(a.label.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      final bBit = int.tryParse(b.label.replaceAll(RegExp(r'[^0-9]'), '')) ?? 0;
-      return bBit.compareTo(aBit);
-    });
-
-    final source = MediaSource(
-      platform: platform,
-      url: url,
-      title: data['text']?.split('\\n').first ?? 'Twitter Video',
-      thumbnailUrl: data['video']['poster'] ?? '',
-    );
-    return ExtractorResult(source: source, formats: formats);
-  }
-
-  Future<ExtractorResult> _extractTikTok(String url, MediaPlatform platform) async {
-    // We use tikwm.com which is one of the most reliable watermark-free TikTok APIs.
-    final response = await _dio.post(
-      'https://www.tikwm.com/api/',
-      data: {'url': url},
-      options: Options(
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'
-        }
-      )
-    );
-    
-    final data = response.data;
-    if (data == null || data['code'] != 0) {
-      throw Exception('TikTok sunucusuna ulaşılamadı. (Gizli video olabilir)');
-    }
-    
-    final itemInfo = data['data'];
-    final playAddr = itemInfo['play'];
-    final title = itemInfo['title'] ?? 'TikTok Video';
-    final cover = itemInfo['cover'] ?? '';
-    
-    final source = MediaSource(
-      platform: platform,
-      url: url,
-      title: title,
-      thumbnailUrl: cover,
-    );
-    
-    return ExtractorResult(source: source, formats: [
-      FormatOption(
-        id: 'tt-hd',
-        label: 'TikTok Videosu (Filigransız HD)',
-        isAudioOnly: false,
-        downloadUrl: playAddr,
-        outputExtension: 'mp4',
-      )
-    ]);
-  }
-
-  Future<ExtractorResult> _extractInstagram(String url, MediaPlatform platform) async {
-    // We try to use a new, highly reliable alternative API (igdownloader.net).
-    // We intentionally DO NOT wrap this in a silent try-catch because the user 
-    // wants to see the raw Exception / DioException if it fails.
-    
-    final response = await _dio.post(
-      'https://v3.igdownloader.net/api/ajaxSearch',
-      data: 'q=\${Uri.encodeComponent(url)}&t=media&lang=en',
-      options: Options(
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36',
-          'Origin': 'https://igdownloader.net',
-          'Referer': 'https://igdownloader.net/en'
-        },
-      ),
-    );
-    
-    final data = response.data;
-    if (data is String) {
-        final Map<String, dynamic> json = jsonDecode(data);
-        final html = json['data'] as String? ?? '';
-        
-        // Extract the download link from the returned HTML
-        final regex = RegExp(r'<a[^>]*href="([^"]+)"[^>]*>.*?Download.*?</a>', caseSensitive: false);
-        final match = regex.firstMatch(html);
-        if (match != null) {
-            String downloadUrl = match.group(1)!;
-            downloadUrl = downloadUrl.replaceAll('&amp;', '&');
-            if (downloadUrl.startsWith('http')) {
-                return ExtractorResult(
-                    source: MediaSource(
-                        platform: platform,
-                        url: url,
-                        title: 'Instagram Video (IGDownloader)',
-                        thumbnailUrl: '',
-                    ),
-                    formats: [
-                        FormatOption(
-                            id: 'ig-alt',
-                            label: 'Instagram Video (Yüksek Kalite)',
-                            isAudioOnly: false,
-                            downloadUrl: downloadUrl,
-                            outputExtension: 'mp4',
-                        ),
-                    ]
-                );
-            }
-        }
-    }
-
-    // If parsing fails but network call succeeds, we throw a clear error.
-    throw Exception('Alternatif servis (IGDownloader) yanıt verdi ancak içinden geçerli video adresi çıkarılamadı.');
   }
 }

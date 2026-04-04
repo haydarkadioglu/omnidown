@@ -42,8 +42,30 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const ListTile(
+            title: Text('Desteklenen Platformlar (yt-dlp)'),
+            subtitle: Text('YouTube, Instagram, TikTok, Twitter, Facebook, Pinterest, Reddit, Vimeo, Dailymotion, SoundCloud ve binlercesi açık kaynak yt-dlp altyapısı ile desteklenmektedir.'),
+          ),
+          const ListTile(
             title: Text('Disclaimer'),
             subtitle: Text('Download only content you have rights to use. Platform terms may apply.'),
+          ),
+          const Divider(),
+          const Padding(
+            padding: EdgeInsets.all(16.0),
+            child: Column(
+              children: [
+                Text(
+                  'Haydar Kadıoğlu tarafından geliştirildi.',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text('haydarkadioglu.com'),
+                SizedBox(height: 4),
+                Text(
+                  'Open Source ❤️',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+              ],
+            ),
           ),
         ],
       ),
