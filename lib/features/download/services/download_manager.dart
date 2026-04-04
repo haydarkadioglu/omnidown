@@ -187,7 +187,7 @@ class DownloadManager extends ChangeNotifier {
         if (await aFile.exists()) await aFile.delete();
 
         if (!ReturnCode.isSuccess(returnCode)) {
-           throw Exception('MP3 dönüştürme başarısız oldu (Hata Kodu: \${returnCode?.getValue()})');
+           throw Exception('MP3 conversion failed (Error Code: \${returnCode?.getValue()})');
         }
       } else {
         await _dio.download(

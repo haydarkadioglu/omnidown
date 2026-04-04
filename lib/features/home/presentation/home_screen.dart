@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with AutomaticKeepAliveClientMixin {
   final _urlController = TextEditingController();
   final _extractorService = ExtractorService();
   final _linkParser = LinkParserService();
@@ -22,6 +22,9 @@ class _HomeScreenState extends State<HomeScreen> {
   MediaSource? _source;
   String _title = '';
   bool _isFetching = false;
+
+  @override
+  bool get wantKeepAlive => true;
 
   @override
   void dispose() {
@@ -68,8 +71,8 @@ class _HomeScreenState extends State<HomeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text(
-            'Gerçek kalite listesi alınamadı (1080p/MP3 şablonu). '
-            'Uygulamayı tam yeniden derleyin (Stop → flutter run) veya YouTube Music yerine youtube.com linki deneyin.',
+            'Could not fetch the actual quality list (1080p/MP3 placeholder). '
+            'Please fully rebuild the app (Stop → flutter run) or try a youtube.com link instead of YouTube Music.',
           ),
           duration: Duration(seconds: 6),
         ),
@@ -99,7 +102,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(Icons.ondemand_video, size: 48, color: Theme.of(context).colorScheme.outline),
           const SizedBox(height: 8),
           Text(
-            'Önizleme yok',
+            'No preview',
             style: TextStyle(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ],
@@ -109,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final themeProvider = context.watch<ThemeProvider>();
     final isInitialState = _source == null && _formats.isEmpty && !_isFetching;
 
@@ -276,7 +280,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: Column(
                 children: [
                   Text(
-                    'Haydar Kadıoğlu tarafından geliştirildi.',
+                    'Developed by Haydar Kadıoğlu',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   Text('haydarkadioglu.com'),
@@ -284,6 +288,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   Text(
                     'Open Source ❤️',
                     style: TextStyle(color: Colors.grey, fontSize: 12),
+                  ),
+                  Text(
+                    'github.com/haydarkadioglu/omnidown',
+                    style: TextStyle(color: Colors.blue, fontSize: 10),
                   ),
                 ],
               ),

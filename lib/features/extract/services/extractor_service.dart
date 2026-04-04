@@ -27,19 +27,19 @@ class ExtractorService {
   final Dio _dio;
   final YoutubeExplode _yt;
 
-  // Sizin yeni nesil Python (yt-dlp) motorunuz!
+  // Your new generation Python (yt-dlp) engine!
   static const String _backendUrl = 'https://omnidownapi.haydarkadioglu.com/api/extract';
 
   Future<ExtractorResult> extract(String url) async {
     final platform = _parserService.detectPlatform(url);
     
-    // Artık hem YouTube hem de Sosyal Medya için direkt en sağlam yol olan 
-    // kendi Python sunucumuza gidiyoruz. Hata çıkarsa yerel çözücüye (varsa) düşer.
+    // Now we go directly to our own Python server, which is the most robust way 
+    // for both YouTube and Social Media. If an error occurs, it falls back to the local solver.
     try {
       return await _extractFromBackend(url, platform);
     } catch (e) {
       if (platform == MediaPlatform.youtube) {
-        // Backend'de bir sorun olursa (örn: 10sn sınırı), yerel YouTube motoruna dönelim.
+        // If there is a problem with the backend (e.g. 10s limit), fall back to local YouTube engine.
         return await _extractYoutube(url, platform);
       }
       rethrow;
@@ -51,13 +51,13 @@ class ExtractorService {
       _backendUrl,
       queryParameters: {'url': url},
       options: Options(
-        receiveTimeout: const Duration(seconds: 20), // yt-dlp bazen analiz için süre ister
+        receiveTimeout: const Duration(seconds: 20), // yt-dlp sometimes takes time for analysis
       ),
     );
 
     final data = response.data;
     if (data == null || data['formats'] == null) {
-      throw Exception('Sunucu yanıt verdi ama video formatları bulunamadı.');
+      throw Exception('Server responded but no video formats were found.');
     }
 
     final formats = (data['formats'] as List).map((f) {
@@ -74,7 +74,7 @@ class ExtractorService {
     final source = MediaSource(
       platform: platform,
       url: url,
-      title: data['title'] ?? 'Medya Dosyası',
+      title: data['title'] ?? 'Media File',
       thumbnailUrl: data['thumbnail'] ?? '',
     );
 
@@ -109,7 +109,7 @@ class ExtractorService {
           FormatOption(
             id: 'muxed-\${stream.tag}',
             label:
-                '\${h}p \${ext.toUpperCase()} ses+görüntü (YouTube birleşik akış, genelde ≤360p)',
+                '\${h}p \${ext.toUpperCase()} audio+video (YouTube muxed stream, usually ≤360p)',
             isAudioOnly: false,
             isVideoOnly: false,
             downloadUrl: stream.url.toString(),
@@ -137,7 +137,7 @@ class ExtractorService {
           formats.add(
             FormatOption(
               id: 'audio-mp3-\${stream.tag}',
-              label: 'Ses MP3 Dönüştür (~\$kbps kbps)',
+              label: 'Audio Convert to MP3 (~\$kbps kbps)',
               isAudioOnly: true,
               isVideoOnly: false,
               downloadUrl: stream.url.toString(),
@@ -150,7 +150,7 @@ class ExtractorService {
         formats.add(
           FormatOption(
             id: 'audio-\${stream.tag}',
-            label: 'Ses \$ext ~\$kbps kbps',
+            label: 'Audio \$ext ~\$kbps kbps',
             isAudioOnly: true,
             isVideoOnly: false,
             downloadUrl: stream.url.toString(),
@@ -168,7 +168,7 @@ class ExtractorService {
         formats.add(
           FormatOption(
             id: 'vonly-\${stream.tag}',
-            label: '\${h}p \${ext.toUpperCase()} (yüksek kalite)',
+            label: '\${h}p \${ext.toUpperCase()} (high quality)',
             isAudioOnly: false,
             isVideoOnly: false, 
             downloadUrl: stream.url.toString(),

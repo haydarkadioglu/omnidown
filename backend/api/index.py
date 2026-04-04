@@ -5,7 +5,7 @@ import json
 
 app = FastAPI()
 
-# Flutter uygulamasının erişebilmesi için CORS ayarları
+# CORS settings for Flutter app access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,7 +18,7 @@ def read_root():
     return {"message": "OmniDown Python Backend is Running!"}
 
 @app.get("/api/extract")
-def extract_video(url: str = Query(..., description="Videonun URL'si")):
+def extract_video(url: str = Query(..., description="Video URL")):
     ydl_opts = {
         'format': 'best',
         'quiet': True,
@@ -33,16 +33,16 @@ def extract_video(url: str = Query(..., description="Videonun URL'si")):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if not info:
-                raise HTTPException(status_code=404, detail="Video bilgileri çekilemedi.")
+                raise HTTPException(status_code=404, detail="Could not fetch video information.")
             
-            # Ana meta veriler
+            # Main metadata
             result = {
-                "title": info.get("title", "Bilinmeyen Başlık"),
+                "title": info.get("title", "Unknown Title"),
                 "thumbnail": info.get("thumbnail", ""),
                 "formats": []
             }
 
-            # Formatları ayıkla ve bizim Dart modelimize (FormatOption) uygun hale getir
+            # Extract formats and map to our Dart model (FormatOption)
             formats = info.get("formats", [])
             if not formats and "url" in info:
                 formats = [info]
@@ -58,9 +58,9 @@ def extract_video(url: str = Query(..., description="Videonun URL'si")):
                 
                 is_audio = vcodec == "none" and acodec != "none"
                 
-                # Eğer ses ise bitrate ekle, video ise çözünürlük
+                # Add bitrate if audio, resolution if video
                 if is_audio:
-                    label = f"Ses {ext.upper()} ({f.get('abr', 0)}kbps)"
+                    label = f"Audio {ext.upper()} ({f.get('abr', 0)}kbps)"
                 else:
                     label = f"{height}p {ext.upper()}" if height else f"Video {ext.upper()}"
 

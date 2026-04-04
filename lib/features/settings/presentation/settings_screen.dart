@@ -42,8 +42,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const ListTile(
-            title: Text('Desteklenen Platformlar (yt-dlp)'),
-            subtitle: Text('YouTube, Instagram, TikTok, Twitter, Facebook, Pinterest, Reddit, Vimeo, Dailymotion, SoundCloud ve binlercesi açık kaynak yt-dlp altyapısı ile desteklenmektedir.'),
+            title: Text('Supported Platforms (yt-dlp)'),
+            subtitle: Text('YouTube, Instagram, TikTok, Twitter, Facebook, Pinterest, Reddit, Vimeo, Dailymotion, SoundCloud and thousands more via the open-source yt-dlp backend.'),
           ),
           const ListTile(
             title: Text('Disclaimer'),
@@ -55,7 +55,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 Text(
-                  'Haydar Kadıoğlu tarafından geliştirildi.',
+                  'Developed by Haydar Kadıoğlu',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
                 Text('haydarkadioglu.com'),
@@ -63,6 +63,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 Text(
                   'Open Source ❤️',
                   style: TextStyle(color: Colors.grey, fontSize: 12),
+                ),
+                Text(
+                  'github.com/haydarkadioglu/omnidown',
+                  style: TextStyle(color: Colors.blue, fontSize: 10),
                 ),
               ],
             ),
