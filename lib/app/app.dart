@@ -57,21 +57,61 @@ class _RootScaffoldState extends State<_RootScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: _screens,
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (value) => setState(() => _index = value),
-        destinations: const [
-          NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
-          NavigationDestination(icon: Icon(Icons.downloading_outlined), label: 'Downloads'),
-          NavigationDestination(icon: Icon(Icons.history), label: 'History'),
-          NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
-        ],
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth >= 600) {
+          // Tablet / Desktop Layout
+          return Scaffold(
+            body: Row(
+              children: [
+                NavigationRail(
+                  selectedIndex: _index,
+                  onDestinationSelected: (value) => setState(() => _index = value),
+                  labelType: NavigationRailLabelType.all,
+                  destinations: const [
+                    NavigationRailDestination(icon: Icon(Icons.home_outlined), label: Text('Home')),
+                    NavigationRailDestination(icon: Icon(Icons.downloading_outlined), label: Text('Downloads')),
+                    NavigationRailDestination(icon: Icon(Icons.history), label: Text('History')),
+                    NavigationRailDestination(icon: Icon(Icons.settings_outlined), label: Text('Settings')),
+                  ],
+                ),
+                const VerticalDivider(thickness: 1, width: 1),
+                Expanded(
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 800),
+                      child: ClipRect(
+                        child: IndexedStack(
+                          index: _index,
+                          children: _screens,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+
+        // Phone Layout
+        return Scaffold(
+          body: IndexedStack(
+            index: _index,
+            children: _screens,
+          ),
+          bottomNavigationBar: NavigationBar(
+            selectedIndex: _index,
+            onDestinationSelected: (value) => setState(() => _index = value),
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.home_outlined), label: 'Home'),
+              NavigationDestination(icon: Icon(Icons.downloading_outlined), label: 'Downloads'),
+              NavigationDestination(icon: Icon(Icons.history), label: 'History'),
+              NavigationDestination(icon: Icon(Icons.settings_outlined), label: 'Settings'),
+            ],
+          ),
+        );
+      },
     );
   }
 }
