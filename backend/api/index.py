@@ -26,7 +26,14 @@ def extract_video(url: str = Query(..., description="Video URL")):
         'nocheckcertificate': True,
         'ignoreerrors': False,
         'skip_download': True,
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user_agent': 'com.google.ios.youtube/19.29.1 (iPhone16,2; U; CPU iOS 17_5_1 like Mac OS X;)',
+        # Use mobile/TV player clients that don't require bot verification
+        'extractor_args': {
+            'youtube': {
+                'player_client': ['ios', 'tv_embedded', 'web_embedded'],
+                'skip': ['translated_subs'],
+            }
+        },
     }
 
     try:
