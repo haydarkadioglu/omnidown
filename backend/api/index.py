@@ -19,6 +19,10 @@ def read_root():
 
 @app.get("/api/extract")
 def extract_video(url: str = Query(..., description="Video URL")):
+    import os
+    # Load YouTube cookies if available (place cookies.txt next to index.py)
+    cookies_path = os.path.join(os.path.dirname(__file__), 'cookies.txt')
+
     ydl_opts = {
         'format': 'best',
         'quiet': True,
@@ -35,6 +39,9 @@ def extract_video(url: str = Query(..., description="Video URL")):
             }
         },
     }
+    if os.path.isfile(cookies_path):
+        ydl_opts['cookiefile'] = cookies_path
+
 
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
