@@ -30,7 +30,6 @@ def _extract_youtube(url: str) -> dict:
     from pytubefix.cli import on_progress
 
     yt = YouTube(url, use_oauth=False, allow_oauth_cache=False)
-    yt.bypass_age_gate()
 
     formats = []
 
